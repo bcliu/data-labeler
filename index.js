@@ -1,3 +1,5 @@
+var SAMPLING_PERCENTAGE = 0.01;
+
 var express = require('express');
 var mysql = require('mysql');
 var multer  = require('multer');
@@ -10,6 +12,7 @@ var done = false;
 var app = express();
 app.set('views', __dirname + '/views');
 app.engine('html', require('ejs').renderFile);
+app.set('view engine', 'ejs');
 
 app.use(multer({ dest: './uploads/' }).single('file'));
 app.use(bodyParser.json());
@@ -56,20 +59,32 @@ app.get('/', function (req, res) {
 
     /* This is bad */
     setTimeout(function () {
+        var unionQuery = "";
         clusterCounts.forEach(function (val, index, arr) {
-            var limit = Math.floor(val * 0.01) - clusterAlreadyLabeledCounts[index];
+            var limit = Math.floor(val * SAMPLING_PERCENTAGE) - clusterAlreadyLabeledCounts[index];
             if (limit <= 0) {
                 return;
             }
-            connection.query('select * from data where cluster = "' + index + '" and is_spam is NULL limit ' + limit, function (err, result) {
-                res.send(result);
-            });
+            unionQuery += '(select * from data where cluster = "' + index + '" and is_spam is NULL limit ' + limit + ')';
+            if (index != arr.length - 1) {
+                unionQuery += ' UNION ';
+            }
+        });
+        connection.query(unionQuery, function (err, result) {
+           if (err) {
+                console.log(err);
+            }
+            res.render('index', { data: JSON.stringify(result) });
         });
     }, 3000);
 });
 
 app.get('/import', function (req, res) {
     res.render('import.html');
+});
+
+app.post('/label', function (req, res) {
+    
 });
 
 /* Import file */
