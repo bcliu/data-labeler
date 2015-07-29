@@ -25,37 +25,23 @@ app.get('/import', function (req, res) {
 
 /* Import file */
 app.post('/import', function (req, res) {
-    fs.createReadStream(req.file.path).pipe(csv()).on('data', function (data) {
-        var connection = mysql.createConnection({
-            host: 'localhost',
-            user: 'root',
-            password: '',
-            database: 'data_labeler'
-        });
-        connection.connect();
+    var connection = mysql.createConnection({
+        host: 'localhost',
+        user: 'root',
+        password: '',
+        database: 'data_labeler'
+    });
 
-        var error;
+    fs.createReadStream(req.file.path).pipe(csv()).on('data', function (data) {
+        connection.connect();
         var query = connection.query('INSERT INTO data SET ?', data, function (err, result) {
             if (err) {
-                error = err;
-                return;
+                console.log(err);
             }
+            connection.end();
         });
-
-        if (error) {
-            res.send(error);
-        } else {
-            res.send('Success!');
-        }
-        connection.end();
     });
+    res.send("success!");
 });
-
-// connection.query('SELECT * from unlabeled', function(err, rows, fields) {
-//     if (!err)
-//         console.log('The solution is: ', rows);
-//     else
-//         console.log('Error while performing Query.');
-// });
 
 app.listen(3000);
