@@ -1,4 +1,7 @@
+/* Percentage of the messages to be sampled each time */
 var SAMPLING_PERCENTAGE = 0.01;
+
+/********************************/
 
 var express = require('express');
 var mysql = require('mysql');
