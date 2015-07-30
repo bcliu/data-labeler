@@ -30,35 +30,9 @@ app.get('/', function (req, res) {
     var clusterCounts = [];
     var clusterAlreadyLabeledCounts = [];
 
-    connection.query('SELECT distinct(cluster) from data', function(err, rows, fields) {
-        if (err) {
-            console.log(err);
-            return;
-        }
+    var finishedQueries = 0;
 
-        rows.forEach(function (val, index, arr) {
-            connection.query('select count(*) from data where cluster = "' + val.cluster + '"', function (err, result) {
-                if (err) {
-                    console.log(err);
-                    return;
-                }
-                clusterCounts[val.cluster] = result[0]['count(*)'];
-            });
-        });
-
-        rows.forEach(function (val, index, arr) {
-            connection.query('select count(*) from data where cluster = "' + val.cluster + '" and is_spam != NULL', function (err, result) {
-                if (err) {
-                    console.log(err);
-                    return;
-                }
-                clusterAlreadyLabeledCounts[val.cluster] = result[0]['count(*)'];
-            });
-        });
-    });
-
-    /* This is bad */
-    setTimeout(function () {
+    var finalFun = function () {
         var unionQuery = "";
         clusterCounts.forEach(function (val, index, arr) {
             var limit = Math.floor(val * SAMPLING_PERCENTAGE) - clusterAlreadyLabeledCounts[index];
@@ -77,7 +51,43 @@ app.get('/', function (req, res) {
             console.log("Loaded " + result.length + " messages for labeling");
             res.render('index', { data: JSON.stringify(result) });
         });
-    }, 3000);
+    };
+
+    /* Note that this query gets executed before the one above */
+    connection.query('SELECT distinct(cluster) from data', function(err, rows, fields) {
+        if (err) {
+            console.log(err);
+            return;
+        }
+
+        var expectedQueries = rows.length * 2;
+
+        rows.forEach(function (val, index, arr) {
+            connection.query('select count(*) from data where cluster = "' + val.cluster + '"', function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                clusterCounts[val.cluster] = result[0]['count(*)'];
+
+                finishedQueries++;
+                if (finishedQueries == expectedQueries) finalFun();
+            });
+        });
+
+        rows.forEach(function (val, index, arr) {
+            connection.query('select count(*) from data where cluster = "' + val.cluster + '" and is_spam != NULL', function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                clusterAlreadyLabeledCounts[val.cluster] = result[0]['count(*)'];
+
+                finishedQueries++;
+                if (finishedQueries == expectedQueries) finalFun();
+            });
+        });
+    });
 });
 
 app.get('/import', function (req, res) {
