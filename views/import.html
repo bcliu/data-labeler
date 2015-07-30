@@ -1,9 +1,21 @@
 <html>
-    <body>
-        <form action="/import" enctype="multipart/form-data" method="post">
+    <head>
+        <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+        <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    </head>
+    <body style="margin: 20px">
+        <h5>
+            <p>The CSV file to be imported must contain the following columns:</p>
+            <p><code>id</code>: Message ID</p>
+            <p><code>account_sid</code>: Twilio account SID</p>
+            <p><code>body</code>: Message body</p>
+            <p><code>cluster</code>: Cluster of the message</p>
+        </h5>
+
+        <form action="/import" enctype="multipart/form-data" method="post" class="form-group">
             File to import:
             <input type="file" name="file">
-            <input type="submit" value="Import">
+            <input style="margin-top: 20px" type="submit" class="btn btn-primary" value="Import">
         </form>
     </body>
 </html>

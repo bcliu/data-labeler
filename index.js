@@ -35,11 +35,12 @@ app.get('/', function (req, res) {
     var finalFun = function () {
         var unionQuery = "";
         clusterCounts.forEach(function (val, index, arr) {
+            console.log("Cluster " + index + ": already labeled " + clusterAlreadyLabeledCounts[index]);
             var limit = Math.floor(val * SAMPLING_PERCENTAGE) - clusterAlreadyLabeledCounts[index];
             if (limit <= 0) {
                 return;
             }
-            unionQuery += '(select * from data where cluster = "' + index + '" and is_spam is NULL limit ' + limit + ')';
+            unionQuery += '(SELECT * FROM data WHERE cluster = "' + index + '" AND is_spam IS NULL limit ' + limit + ')';
             if (index != arr.length - 1) {
                 unionQuery += ' UNION ';
             }
@@ -54,7 +55,7 @@ app.get('/', function (req, res) {
     };
 
     /* Note that this query gets executed before the one above */
-    connection.query('SELECT distinct(cluster) from data', function(err, rows, fields) {
+    connection.query('SELECT DISTINCT(cluster) FROM data', function(err, rows, fields) {
         if (err) {
             console.log(err);
             return;
@@ -63,12 +64,12 @@ app.get('/', function (req, res) {
         var expectedQueries = rows.length * 2;
 
         rows.forEach(function (val, index, arr) {
-            connection.query('select count(*) from data where cluster = "' + val.cluster + '"', function (err, result) {
+            connection.query('SELECT COUNT(*) FROM data WHERE cluster = "' + val.cluster + '"', function (err, result) {
                 if (err) {
                     console.log(err);
                     return;
                 }
-                clusterCounts[val.cluster] = result[0]['count(*)'];
+                clusterCounts[val.cluster] = result[0]['COUNT(*)'];
 
                 finishedQueries++;
                 if (finishedQueries == expectedQueries) finalFun();
@@ -76,12 +77,12 @@ app.get('/', function (req, res) {
         });
 
         rows.forEach(function (val, index, arr) {
-            connection.query('select count(*) from data where cluster = "' + val.cluster + '" and is_spam != NULL', function (err, result) {
+            connection.query('SELECT COUNT(*) FROM data WHERE cluster = "' + val.cluster + '" AND is_spam IS NOT NULL', function (err, result) {
                 if (err) {
                     console.log(err);
                     return;
                 }
-                clusterAlreadyLabeledCounts[val.cluster] = result[0]['count(*)'];
+                clusterAlreadyLabeledCounts[val.cluster] = result[0]['COUNT(*)'];
 
                 finishedQueries++;
                 if (finishedQueries == expectedQueries) finalFun();
@@ -109,17 +110,19 @@ app.post('/label', function (req, res) {
 
 /* Import file */
 app.post('/import', function (req, res) {
-    var count = 0;
     fs.createReadStream(req.file.path).pipe(csv()).on('data', function (data) {
+        if (!('id' in data) || !('account_sid') in data || !('body' in data) || !('cluster' in data)) {
+            /* This can't be caught as it's async. Still trying to figure out a way... */
+            throw "CSV file must contain all the columns: id, account_sid, body, cluster.";
+        }
         /* Check format here */
         connection.query('INSERT INTO data SET ?', data, function (err, result) {
             if (err) {
-                console.log(err);
+                throw err;
             }
         });
-        count++;
     });
-    res.send(count + " messages imported successfully");
+    res.send("Imported successfully");
 });
 
-app.listen(3000);
+app.listen(1234);
