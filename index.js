@@ -74,6 +74,7 @@ app.get('/', function (req, res) {
            if (err) {
                 console.log(err);
             }
+            console.log("Loaded " + result.length + " messages for labeling");
             res.render('index', { data: JSON.stringify(result) });
         });
     }, 3000);
@@ -84,21 +85,31 @@ app.get('/import', function (req, res) {
 });
 
 app.post('/label', function (req, res) {
+    var id = req.body.id;
+    var isSpam = req.body.isSpam;
     
+    console.log("Setting " + id + " is_spam to " + isSpam);
+    connection.query('UPDATE data SET is_spam = ' + isSpam + ' WHERE id = "' + id + '"', function (err, result) {
+        if (err) {
+            console.log(err);
+        }
+        res.send('success');
+    });
 });
 
 /* Import file */
 app.post('/import', function (req, res) {
+    var count = 0;
     fs.createReadStream(req.file.path).pipe(csv()).on('data', function (data) {
-        connection.connect();
-        var query = connection.query('INSERT INTO data SET ?', data, function (err, result) {
+        /* Check format here */
+        connection.query('INSERT INTO data SET ?', data, function (err, result) {
             if (err) {
                 console.log(err);
             }
-            connection.end();
         });
+        count++;
     });
-    res.send("success!");
+    res.send(count + " messages imported successfully");
 });
 
 app.listen(3000);

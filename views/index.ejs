@@ -23,7 +23,8 @@
             }
 
             function submitLabel(isSpam) {
-                $.post('/label', { id: $('#data').attr('message-id'), isSpam: isSpam });
+                var toSend = { id: $('#text').attr('message-id'), isSpam: isSpam };
+                $.post('/label', toSend);
                 displayNext();
             }
 
